@@ -29,8 +29,14 @@ local nodes = {
     [0xc0] = "Hub",
 }
 
+local commands = {
+    [0x01] = "Function",
+    [0x02] = "Get config",
+}
+
 pn_sof = ProtoField.uint8("pneuron.start_of_frame", "Start Of Frame", base.HEX)
 pn_type = ProtoField.uint8("pneuron.type", "Type", base.HEX, types)
+pn_cmd = ProtoField.uint8("pneuron.cmd", "Command", base.HEX, commands)
 pn_id = ProtoField.uint16("pneuron.id", "Transaction id", base.HEX)
 pn_key = ProtoField.uint8("pneuron.key", "Key", base.HEX, keys)
 pn_len = ProtoField.uint8("pneuron.len", "Length", base.HEX)
@@ -46,7 +52,7 @@ pn_dst = ProtoField.uint16("pneuron.dst", "Destination", base.HEX, nodes)
 -- local type = Field.new("pneuron.key")
 
 pneuron.fields = {
-    pn_sof, pn_type, pn_id, pn_src, pn_dst, pn_key, pn_len, pn_data, pn_crc, pn_eof, pn_item_len, pn_item_num
+    pn_sof, pn_type, pn_id, pn_src, pn_dst, pn_key, pn_len, pn_data, pn_crc, pn_eof, pn_item_len, pn_item_num, pn_cmd
 }
 
 function parse_header(t, pinfo, root)
@@ -85,10 +91,21 @@ end
 -- 01 00 0b nn 01 01 flash node nn
 -- 01 06 04 b0 40 00 Prepare for firmware upload
 -- 01 06 04 c0 c4 00 "
+-- 02 nn ?? 00 00 00 Get config
 
 function parse_01(t, pinfo, root)
     t = parse_id(t, pinfo, root)
-    root:add(pn_data, t(0,6))
+
+    local cmd = t(0,1)
+    root:add(pn_cmd, cmd)
+
+    if cmd:uint() == 0x02 then
+        root:add(pn_key, t(1,1))
+        root:add(pn_data, t(2,4))
+    else
+        root:add(pn_data, t(1,5))
+    end
+
     return t(6,-1)
 end
 
@@ -146,7 +163,7 @@ function parse_0a(t, pinfo, root)
     return t(data_length, -1)
 end
 
-local command_table = {
+local packet_table = {
     [0x01] = parse_01,
     [0x02] = parse_02,
     [0x03] = parse_03,
@@ -169,7 +186,7 @@ function parse_packet(tvbuf, pinfo, root)
 
         t = parse_header(tvbuf, pinfo, subtree)
 
-        t = command_table[type](t, pinfo, subtree)
+        t = packet_table[type](t, pinfo, subtree)
 
         subtree:add(pn_crc, t(0,1))
         subtree:add(pn_eof, t(1,1))
