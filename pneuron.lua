@@ -14,18 +14,48 @@ local types = {
 }
 
 local keys = {
-   [0x01] = "Hub Firmware Version?",
+   [0x01] = "Hub Firmware Version",
    [0x15] = "Hub Serial Number",
    [0x18] = "Wifi Config",
    [0x19] = "Server Config",
    [0x30] = "Wifi Scan",
-   [0x71] = "Node Firmware Version?",
+   [0x71] = "Node Firmware Versions",
    [0x73] = "Node Serial Numbers",
    [0x7c] = "Node Serial Numbers",
 }
 
 local nodes = {
+    [0x01] = "Waist",
+    [0x02] = "Right Thigh",
+    [0x03] = "Right Calf",
+    [0x04] = "Right Foot",
+    [0x24] = "Left Thigh",
+    [0x25] = "Left Calf",
+    [0x26] = "Left Foot",
+    [0x48] = "Back",
+    [0x5a] = "Head",
+    [0x5c] = "Right Bicep",
+    [0x5d] = "Right Forearm",
+    [0x5e] = "Right Hand",
+    [0x61] = "Right Thumb",
+    [0x62] = "Right Thumb Tip",
+    [0x66] = "Right Index",
+    [0x67] = "Right Index Tip",
+    [0x6c] = "Right Middle Tip",
+    [0x71] = "Right Ring Tip",
+    [0x76] = "Right Pinky Tip",
+    [0x7f] = "Left Bicep",
+    [0x80] = "Left Forearm",
+    [0x81] = "Left Hand",
+    [0x84] = "Left Thumb",
+    [0x85] = "Left Thumb Tip",
+    [0x89] = "Left Index",
+    [0x8a] = "Left Index Tip",
+    [0x8f] = "Left Middle Tip",
+    [0x94] = "Left Ring Tip",
+    [0x99] = "Left Pinky Tip",
     [0xa0] = "Server",
+    [0xa1] = "Tool cable",
     [0xc0] = "Hub",
 }
 
@@ -49,10 +79,12 @@ pn_item_num = ProtoField.uint8("pneuron.item_num", "Item Count", base.DEC)
 pn_src = ProtoField.uint16("pneuron.src", "Source", base.HEX, nodes)
 pn_dst = ProtoField.uint16("pneuron.dst", "Destination", base.HEX, nodes)
 
+pn_16b = ProtoField.uint16("pneuron.raw16b", "Unknown", base.HEX)
+
 -- local type = Field.new("pneuron.key")
 
 pneuron.fields = {
-    pn_sof, pn_type, pn_id, pn_src, pn_dst, pn_key, pn_len, pn_data, pn_crc, pn_eof, pn_item_len, pn_item_num, pn_cmd
+    pn_sof, pn_type, pn_id, pn_src, pn_dst, pn_key, pn_len, pn_data, pn_crc, pn_eof, pn_item_len, pn_item_num, pn_cmd, pn_16b
 }
 
 function parse_header(t, pinfo, root)
@@ -147,10 +179,14 @@ function parse_07(t, pinfo, root)
     return t(data_length, -1)
 end
 
+-- IMU data
 function parse_09(t, pinfo, root)
     t = parse_id_no_dst(t, pinfo, root)
     local data_length = 31
-    root:add(pn_data, t(0, data_length))
+    root:add_le(pn_16b, t(0, 2))
+    root:add_le(pn_16b, t(2, 2))
+    root:add_le(pn_16b, t(4, 2))
+    root:add(pn_data, t(6, data_length-6))
     return t(data_length, -1)
 end
 
