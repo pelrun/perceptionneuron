@@ -107,6 +107,16 @@ function parse_0a(t, pinfo, root)
     return t(data_length, -1)
 end
 
+local command_table = {
+    [0x01] = parse_01,
+    [0x02] = parse_02,
+    [0x03] = parse_03,
+    [0x04] = parse_04,
+    [0x07] = parse_07,
+    [0x09] = parse_09,
+    [0x0a] = parse_0a,
+}
+
 function parse_packet(tvbuf, pinfo, root)
     local pktlen = tvbuf:len()
 
@@ -119,21 +129,7 @@ function parse_packet(tvbuf, pinfo, root)
 
         t = parse_header(tvbuf, pinfo, subtree)
 
-        if type == 0x01 then
-            t = parse_01(t, pinfo, subtree)
-        elseif type == 0x02 then
-            t = parse_02(t, pinfo, subtree)
-        elseif type == 0x03 then
-            t = parse_03(t, pinfo, subtree)
-        elseif type == 0x04 then
-            t = parse_04(t, pinfo, subtree)
-        elseif type == 0x07 then
-            t = parse_07(t, pinfo, subtree)
-        elseif type == 0x09 then
-            t = parse_09(t, pinfo, subtree)
-        elseif type == 0x0a then
-            t = parse_0a(t, pinfo, subtree)
-        end
+        t = command_table[type](t, pinfo, subtree)
 
         subtree:add(pn_crc, t(0,1))
         subtree:add(pn_eof, t(1,1))
